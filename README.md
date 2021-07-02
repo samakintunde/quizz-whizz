@@ -5,4 +5,4 @@ Accepts an input csv file which is two columns. Question column and answer colum
 
 ### TODO
 - [ ] Add a countdown timer, customizable via a flag.
-- [] Implement use of command line arguments to supply file, customize timer, etc
+- [ ] Implement use of command line arguments to supply file, customize timer, etc
