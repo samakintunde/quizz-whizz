@@ -3,16 +3,20 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
-	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 )
 
-func isValidCsv(file *os.File) bool {
-	info, err := file.Stat()
+func isValidCsv(f *os.File) bool {
+	info, err := f.Stat()
 
-	if isCsv := strings.HasSuffix(info.Name(), ".csv"); err != nil || !isCsv {
+	if err != nil {
+		return false
+	}
+
+	if !strings.HasSuffix(info.Name(), ".csv") {
 		return false
 	}
 
@@ -23,20 +27,18 @@ func isValidCsv(file *os.File) bool {
 func parseQuestions(filePath string) ([][]string, error) {
 	file, err := os.Open(filePath)
 
+	defer file.Close()
+
 	if !isValidCsv(file) {
-		err := errors.New("File is not a valid CSV File")
-		return nil, err
+		panic("File is not a valid CSV File")
 	}
 
-	// Handle error opening file
 	if err != nil {
 		return nil, err
 	}
 
-	// Read file as csv
-	// We should probably check if it is a valid csv file first
-	csvReader := csv.NewReader(file)
-	records, err := csvReader.ReadAll()
+	r := csv.NewReader(file)
+	recs, err := r.ReadAll()
 
 	// Handle error reading the csv
 	// Probably empty file or imporoperly formatted values
@@ -44,34 +46,43 @@ func parseQuestions(filePath string) ([][]string, error) {
 		return nil, err
 	}
 
-	return records, nil
+	return recs, nil
 }
 
 // Ask questions until end
-func askQuestion(index int, question []string, reader *bufio.Reader) (string, error) {
-	fmt.Printf("%d%-2s", index+1, ".")
+func askQuestion(i int, question []string, r *bufio.Reader) (string, error) {
+	fmt.Printf("%d%-2s", i+1, ".")
 	fmt.Printf("%v: ", question[0])
 
-	answer, err := reader.ReadString('\n')
+	ans, err := r.ReadString('\n')
 
 	if err != nil {
 		return "", err
 	}
 
 	// Validate string
-	answer = strings.TrimSpace(answer)
+	ans = strings.TrimSpace(ans)
 
-	if length := len(answer); length == 0 {
+	if len(ans) == 0 {
 		fmt.Println("Invalid answer. Try again!")
-		askQuestion(index, question, reader)
+		askQuestion(i, question, r)
 	}
 
-	return answer, nil
+	return ans, nil
 }
 
 func main() {
+	// os.Args
+	filePath := flag.String("file", "", "Path to the location of the quiz file. (should be a .csv of two columns, first is question and second is answer.)")
+
+	flag.Parse()
+
+	if *filePath == "" {
+		panic("Please, pass a valid filePath. Run './main -h' for more help.")
+	}
+
 	// Process CSV into questions
-	questions, err := parseQuestions("problems.csv")
+	questions, err := parseQuestions(*filePath)
 
 	if err != nil {
 		fmt.Println(err)
