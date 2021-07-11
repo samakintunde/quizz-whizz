@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
+// isValidCsv checks to see if the file is a valid csv file
 func isValidCsv(f *os.File) bool {
 	info, err := f.Stat()
 
@@ -23,14 +25,14 @@ func isValidCsv(f *os.File) bool {
 	return true
 }
 
-// Load questions
+// parseQuestions extracts the questions from the csv file
 func parseQuestions(filePath string) ([][]string, error) {
 	file, err := os.Open(filePath)
 
 	defer file.Close()
 
 	if !isValidCsv(file) {
-		panic("File is not a valid CSV File")
+		panic(fmt.Sprintf("Could not open file: %s\n", filePath))
 	}
 
 	if err != nil {
@@ -49,7 +51,7 @@ func parseQuestions(filePath string) ([][]string, error) {
 	return recs, nil
 }
 
-// Ask questions until end
+// askQuestion asks questions until end
 func askQuestion(i int, question []string, r *bufio.Reader) (string, error) {
 	fmt.Printf("%d%-2s", i+1, ".")
 	fmt.Printf("%v: ", question[0])
@@ -71,9 +73,13 @@ func askQuestion(i int, question []string, r *bufio.Reader) (string, error) {
 	return ans, nil
 }
 
+func countdown(duration int) {
+}
+
 func main() {
 	// os.Args
-	filePath := flag.String("file", "", "Path to the location of the quiz file. (should be a .csv of two columns, first is question and second is answer.)")
+	filePath := flag.String("file", "problems.csv", "Path to the location of the quiz file. (should be a .csv of two columns, first is question and second is answer.)")
+	duration := flag.Int("time", 60, "Time to complete all questions")
 
 	flag.Parse()
 
@@ -92,17 +98,35 @@ func main() {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	for index, question := range questions {
-		answer, err := askQuestion(index, question, reader)
+	_ = reader // Take out later
 
-		if err != nil {
-			panic("Something really terrible happened!")
-		}
+	timer := time.NewTimer(time.Duration(*duration) * time.Second)
+	done := make(chan bool) // Uses a semaphore
 
-		if question[1] == answer {
-			count += 1
+	go func() {
+		for index, question := range questions {
+			answer, err := askQuestion(index, question, reader)
+
+			if err != nil {
+				panic("Something really terrible happened!")
+			}
+
+			if question[1] == answer {
+				count += 1
+			}
 		}
+		done <- true
+	}()
+
+	select {
+	case <-timer.C:
+		fmt.Printf("You got %d/%d.\n", count, len(questions))
+		close(done)
+		return
+	case <-done:
+		fmt.Printf("You got %d/%d.\n", count, len(questions))
+		close(done)
+		return
 	}
 
-	fmt.Printf("You got %d/%d.", count, len(questions))
 }
