@@ -29,21 +29,25 @@ func isValidCsv(f *os.File) bool {
 func parseQuestions(filePath string) ([][]string, error) {
 	file, err := os.Open(filePath)
 
-	defer file.Close()
-
-	if !isValidCsv(file) {
-		panic(fmt.Sprintf("Could not open file: %s\n", filePath))
-	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+		}
+	}(file)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if !isValidCsv(file) {
+		panic(fmt.Sprintf("Could not open file: %s\n", filePath))
 	}
 
 	r := csv.NewReader(file)
 	recs, err := r.ReadAll()
 
 	// Handle error reading the csv
-	// Probably empty file or imporoperly formatted values
+	// Probably empty file or improperly formatted values
 	if err != nil {
 		return nil, err
 	}
@@ -67,13 +71,10 @@ func askQuestion(i int, question []string, r *bufio.Reader) (string, error) {
 
 	if len(ans) == 0 {
 		fmt.Println("Invalid answer. Try again!")
-		askQuestion(i, question, r)
+		return askQuestion(i, question, r)
 	}
 
 	return ans, nil
-}
-
-func countdown(duration int) {
 }
 
 func main() {
